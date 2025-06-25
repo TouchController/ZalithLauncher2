@@ -6,15 +6,12 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.PointerId
 import androidx.compose.ui.input.pointer.PointerInputChange
-import androidx.compose.ui.input.pointer.changedToDown
 import androidx.compose.ui.input.pointer.changedToDownIgnoreConsumed
-import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.util.fastForEach
 import com.movtery.zalithlauncher.game.support.touch_controller.ControllerProxy.proxyClient
 import org.lwjgl.glfw.CallbackBridge
-import top.fifthlight.touchcontroller.proxy.data.Offset
 
 /**
  * 单独捕获触摸事件，为TouchController模组的控制代理提供信息
@@ -25,10 +22,10 @@ fun Modifier.touchControllerModifier() = this.pointerInput(Unit) {
         val activePointers = mutableMapOf<PointerId, Int>()
         var nextPointerId = 1
 
-        fun PointerInputChange.toProxyOffset(): Offset {
+        fun PointerInputChange.toProxyOffset(): Pair<Float, Float> {
             val normalizedX = position.x / CallbackBridge.physicalWidth
             val normalizedY = position.y / CallbackBridge.physicalHeight
-            return Offset(normalizedX, normalizedY)
+            return Pair(normalizedX, normalizedY)
         }
 
         while (true) {
@@ -38,7 +35,8 @@ fun Modifier.touchControllerModifier() = this.pointerInput(Unit) {
                     if (!activePointers.containsKey(change.id)) {
                         val pointerId = nextPointerId++
                         activePointers[change.id] = pointerId
-                        proxyClient?.addPointer(pointerId, change.toProxyOffset())
+                        val (x, y) = change.toProxyOffset()
+                        proxyClient?.addPointer(pointerId, x, y)
                     }
                 } else if (change.changedToUpIgnoreConsumed()) {
                     activePointers.remove(change.id)?.let { pointerId ->
@@ -46,7 +44,8 @@ fun Modifier.touchControllerModifier() = this.pointerInput(Unit) {
                     }
                 } else if (change.pressed && event.type == PointerEventType.Move) {
                     activePointers[change.id]?.let { pointerId ->
-                        proxyClient?.addPointer(pointerId, change.toProxyOffset())
+                        val (x, y) = change.toProxyOffset()
+                        proxyClient?.addPointer(pointerId, x, y)
                     }
                 }
             }
