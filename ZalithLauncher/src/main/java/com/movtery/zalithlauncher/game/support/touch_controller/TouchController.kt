@@ -261,8 +261,21 @@ private class TouchControllerInputConnection(
         }
 
     override fun commitText(text: CharSequence, newCursorPosition: Int): Boolean {
-        updateState { currentState ->
-            currentState.commitTextAsNewState(text, newCursorPosition)
+        var enterCount = 0
+        val filteredText = text.filter {
+            val isNewLine = it == '\n'
+            if (isNewLine) {
+                enterCount++
+            }
+            !isNewLine
+        }
+        if (filteredText.isNotEmpty()) {
+            updateState { currentState ->
+                currentState.commitTextAsNewState(filteredText, newCursorPosition)
+            }
+        }
+        repeat(enterCount) {
+            LWJGLCharSender.sendEnter()
         }
         return true
     }
