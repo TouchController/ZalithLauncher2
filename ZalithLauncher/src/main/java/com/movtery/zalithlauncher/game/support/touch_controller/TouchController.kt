@@ -79,7 +79,6 @@ private data class TouchControllerInputModifier(
     }
 }
 
-// TODO: better handling for full screen input
 private class TouchControllerInputConnection(
     scope: CoroutineScope,
     private val view: View,
@@ -95,6 +94,7 @@ private class TouchControllerInputConnection(
     }
     private var inBatchEdit: Int = 0
     private var delayedNewStateByBatchEdit: TextInputState? = null
+    private var extractTextToken: Int? = null
 
     private fun TextRange.isEmpty() = length == 0
     private fun String.removeRange(range: TextRange) =
@@ -172,6 +172,9 @@ private class TouchControllerInputConnection(
             state.composition.start,
             state.composition.end
         )
+        extractTextToken?.let { token ->
+            inputMethodManager.updateExtractedText(view, token, getExtractedText())
+        }
     }
 
     fun updateState(newState: TextInputState) {
@@ -370,19 +373,25 @@ private class TouchControllerInputConnection(
         }
     }
 
-    override fun getExtractedText(request: ExtractedTextRequest?, flags: Int) =
-        ExtractedText().apply {
-            state.let {
-                text = it.text
-                selectionStart = it.selection.start
-                selectionEnd = it.selection.end
-                startOffset = 0
-                partialStartOffset = -1
-                partialEndOffset = 0
-            }
+    private fun getExtractedText() = ExtractedText().apply {
+        state.let {
+            text = it.text
+            selectionStart = it.selection.start
+            selectionEnd = it.selection.end
+            startOffset = 0
+            partialStartOffset = -1
+            partialEndOffset = 0
         }
+    }
 
-    override fun getHandler() = null
+    override fun getExtractedText(request: ExtractedTextRequest, flags: Int): ExtractedText {
+        this.extractTextToken = request.token
+        return getExtractedText()
+    }
+
+        override
+
+    fun getHandler() = null
 
     override fun getSelectedText(flags: Int): CharSequence? {
         return if (!state.selection.isEmpty()) {
@@ -453,6 +462,9 @@ private class TouchControllerInputConnection(
     }
 
     override fun reportFullscreenMode(enabled: Boolean): Boolean {
+        if (!inputMethodManager.isFullscreenMode) {
+            extractTextToken = null
+        }
         return true
     }
 
